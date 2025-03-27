@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Filmverwaltung – Perfekte Formulare</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #f3f4f6;
+      color: #333;
+    }
+    .container {
+      max-width: 700px;
+      margin: 60px auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 40px 30px;
+    }
+    h1, h2 {
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+    .section {
+      margin-bottom: 40px;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      font-weight: 600;
+      color: #555;
+    }
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1em;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: #007bff;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    .btn-row {
+      display: flex;
+      gap: 15px;
+      margin-top: 25px;
+      justify-content: flex-end;
+    }
+    button {
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background 0.2s;
+    }
+    .btn-cancel {
+      background: #6c757d;
+      color: white;
+    }
+    .btn-cancel:hover {
+      background: #5a6268;
+    }
+    .btn-save {
+      background: #28a745;
+      color: white;
+    }
+    .btn-save:hover {
+      background: #218838;
+    }
+    .btn-submit {
+      background: #007bff;
+      color: white;
+    }
+    .btn-submit:hover {
+      background: #0056b3;
+    }
+
+    @media (max-width: 600px) {
+      .btn-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .btn-row button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Filmverwaltung</h1>
+
+  <!-- Abschnitt 1: Neuen Film hinzufügen -->
+  <div class="section">
+    <h2>Neuen Film hinzufügen</h2>
+    <form>
+      <label for="titel">Titel:</label>
+      <input type="text" id="titel" name="titel" placeholder="Filmtitel eingeben" required>
+
+      <label for="genre">Genre:</label>
+      <input type="text" id="genre" name="genre" placeholder="z. B. Action, Komödie, Drama ...">
+
+      <label for="regisseur">Regisseur:</label>
+      <input type="text" id="regisseur" name="regisseur" placeholder="Name des Regisseurs">
+
+      <label for="bewertung">Bewertung:</label>
+      <input type="number" step="0.1" id="bewertung" name="bewertung" placeholder="z. B. 7.5">
+
+      <div class="btn-row">
+        <button type="button" class="btn-cancel" onclick="alert('Vorgang abgebrochen')">Abbrechen</button>
+        <button type="submit" class="btn-save">Speichern</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Abschnitt 2: Neue Bewertung abgeben -->
+  <div class="section">
+    <h2>Neue Bewertung abgeben</h2>
+    <form>
+      <label for="rating">Bewertung (1–5):</label>
+      <select id="rating" name="rating" required>
+        <option value="">Wählen...</option>
+        <option value="1">★ 1</option>
+        <option value="2">★ 2</option>
+        <option value="3">★ 3</option>
+        <option value="4">★ 4</option>
+        <option value="5">★ 5</option>
+      </select>
+
+      <label for="meinung">Deine Meinung:</label>
+      <textarea id="meinung" name="meinung" placeholder="Was möchtest du zum Film sagen?" required></textarea>
+
+      <div class="btn-row">
+        <button type="button" class="btn-cancel" onclick="alert('Bewertung abgebrochen')">Abbrechen</button>
+        <button type="submit" class="btn-submit">Absenden</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+</body>
+</html>
