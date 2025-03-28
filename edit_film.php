@@ -50,13 +50,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $genre     = trim($_POST['genre']);
     $regisseur = trim($_POST['regisseur']);
     $bewertung = (float)($_POST['bewertung']);
+    $erscheinungsjahr = (int)($_POST['erscheinungsjahr'] ?? 0);
+    $dauer = (int)($_POST['dauer'] ?? 0);
+    $sprache = trim($_POST['sprache'] ?? '');
+    $beschreibung = trim($_POST['beschreibung'] ?? '');
+    $schauspieler_raw = trim($_POST['schauspieler'] ?? '');
+
+    // Schauspieler-Array aufbauen
+    $schauspieler = [];
+    if ($schauspieler_raw !== '') {
+        $namen = array_map('trim', explode(',', $schauspieler_raw));
+        foreach ($namen as $name) {
+            if ($name !== '') {
+                $schauspieler[] = ['name' => $name];
+            }
+        }
+    }
 
     updateFilm($filmId, [
         'titel'     => $titel,
         'genre'     => $genre,
         'regisseur' => $regisseur,
-        'bewertung' => $bewertung
+        'bewertung' => $bewertung,
+        'erscheinungsjahr' => $erscheinungsjahr,
+        'dauer' => $dauer,
+        'sprache' => $sprache,
+        'beschreibung' => $beschreibung,
+        'schauspieler' => $schauspieler
     ]);
+
     header("Location: index.php?film=" . urlencode($filmId));
     exit;
 }
@@ -88,8 +110,11 @@ if (!$film) {
         label {
             display:block; margin:10px 0 5px; font-weight:bold;
         }
-        input[type="text"], input[type="number"] {
+        input[type="text"], input[type="number"], textarea {
             width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;
+        }
+        textarea {
+            resize: vertical;
         }
         button {
             background:#28a745; color:#fff; border:none; padding:8px 16px; border-radius:6px;
@@ -116,13 +141,33 @@ if (!$film) {
         <input type="text" id="titel" name="titel" value="<?= htmlspecialchars($film->titel) ?>" required>
 
         <label for="genre">Genre:</label>
-        <input type="text" id="genre" name="genre" value="<?= htmlspecialchars($film->genre) ?>">
+        <input type="text" id="genre" name="genre" value="<?= htmlspecialchars($film->genre ?? '') ?>">
 
         <label for="regisseur">Regisseur:</label>
-        <input type="text" id="regisseur" name="regisseur" value="<?= htmlspecialchars($film->regisseur) ?>">
+        <input type="text" id="regisseur" name="regisseur" value="<?= htmlspecialchars($film->regisseur ?? '') ?>">
 
         <label for="bewertung">Bewertung:</label>
-        <input type="number" step="0.1" id="bewertung" name="bewertung" value="<?= $film->bewertung ?>">
+        <input type="number" step="0.1" id="bewertung" name="bewertung" value="<?= htmlspecialchars($film->bewertung ?? 0) ?>">
+
+        <label for="erscheinungsjahr">Erscheinungsjahr:</label>
+        <input type="number" id="erscheinungsjahr" name="erscheinungsjahr" value="<?= htmlspecialchars($film->erscheinungsjahr ?? '') ?>">
+
+        <label for="dauer">Dauer (Minuten):</label>
+        <input type="number" id="dauer" name="dauer" value="<?= htmlspecialchars($film->dauer ?? '') ?>">
+
+        <label for="sprache">Sprache:</label>
+        <input type="text" id="sprache" name="sprache" value="<?= htmlspecialchars($film->sprache ?? '') ?>">
+
+        <label for="beschreibung">Beschreibung:</label>
+        <textarea id="beschreibung" name="beschreibung" rows="4"><?= htmlspecialchars($film->beschreibung ?? '') ?></textarea>
+
+        <label for="schauspieler">Schauspieler (kommagetrennt):</label>
+        <input type="text" id="schauspieler" name="schauspieler" value="<?php
+            if (!empty($film->schauspieler)) {
+                $namen = array_map(fn($s) => $s->name ?? '', $film->schauspieler);
+                echo htmlspecialchars(implode(', ', $namen));
+            }
+        ?>">
 
         <button type="submit">Speichern</button>
     </form>

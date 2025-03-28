@@ -71,6 +71,18 @@ function deleteDocument($collection, $id)
 }
 
 /**
+ * Einzelnen User anhand seiner _id holen (oder null).
+ */
+function getUserById($id)
+{
+  $filter = ['_id' => new MongoDB\BSON\ObjectId($id)];
+  $cursor = fetchCollection('users', $filter);
+  $arr = $cursor->toArray();
+  return (count($arr) > 0) ? $arr[0] : null;
+}
+
+
+/**
  * Einzelnen Film anhand seiner _id holen (oder null).
  */
 function getFilmById($id)
@@ -100,18 +112,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
   if (!isLoggedIn() || !isAdmin()) {
     exit("Nur Admin darf Filme hinzufügen.");
   }
+
   $titel = trim($_POST['titel']);
   $genre = trim($_POST['genre']);
   $regisseur = trim($_POST['regisseur']);
   $bewertung = (float) ($_POST['bewertung'] ?? 0);
+  $erscheinungsjahr = (int) ($_POST['erscheinungsjahr'] ?? 0);
+  $dauer = (int) ($_POST['dauer'] ?? 0);
+  $sprache = trim($_POST['sprache'] ?? '');
+  $beschreibung = trim($_POST['beschreibung'] ?? '');
+  $schauspieler_raw = trim($_POST['schauspieler'] ?? '');
+
+  $schauspieler = [];
+  if ($schauspieler_raw !== '') {
+    $namen = array_map('trim', explode(',', $schauspieler_raw));
+    foreach ($namen as $name) {
+      if ($name !== '') {
+        $schauspieler[] = ['name' => $name];
+      }
+    }
+  }
+
   if ($titel !== '') {
     insertDocument('movies', [
       'titel' => $titel,
       'genre' => $genre,
       'regisseur' => $regisseur,
-      'bewertung' => $bewertung
+      'bewertung' => $bewertung,
+      'erscheinungsjahr' => $erscheinungsjahr,
+      'dauer' => $dauer,
+      'sprache' => $sprache,
+      'beschreibung' => $beschreibung,
+      'schauspieler' => $schauspieler
     ]);
   }
+
   header("Location: index.php");
   exit;
 }
@@ -127,9 +162,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
   if ($film_id && $rating > 0 && $text !== '') {
     insertDocument('reviews', [
       'film_id' => new MongoDB\BSON\ObjectId($film_id),
-      'user_id' => new MongoDB\BSON\ObjectId($_SESSION['user_id']),
-      'rating' => $rating,
-      'text' => $text
+      'benutzer_id' => new MongoDB\BSON\ObjectId($_SESSION['user_id']),
+      'bewertung' => $rating,
+      'kommentar' => $text
     ]);
   }
   header("Location: index.php?film=" . urlencode($film_id));
@@ -186,7 +221,7 @@ $filmId = $_GET['film'] ?? null;  // Falls gesetzt: Detailansicht
     }
 
     a:hover {
-      color: #0056b3;
+      color: #ffffff;
     }
 
     /* Navigation */
@@ -275,6 +310,14 @@ $filmId = $_GET['film'] ?? null;  // Falls gesetzt: Detailansicht
       display: grid;
       gap: 20px;
       grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      align-items: stretch;
+    }
+
+    .movie-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      flex-grow: 1;
     }
 
     .movie-card {
@@ -284,11 +327,13 @@ $filmId = $_GET['film'] ?? null;  // Falls gesetzt: Detailansicht
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
       display: flex;
       flex-direction: column;
-      transition: transform 0.1s;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
     }
 
     .movie-card:hover {
-      transform: scale(1.01);
+      transform: scale(1.05);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
 
     .movie-card h3 {
@@ -375,6 +420,141 @@ $filmId = $_GET['film'] ?? null;  // Falls gesetzt: Detailansicht
       border-radius: 4px;
     }
 
+    /* Modal Overlay */
+    #movie-modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    /* Modal Box */
+    #movie-modal-overlay .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      color: #333;
+    }
+
+    /* Modal Form */
+    #movie-modal-overlay form label {
+      display: block;
+      margin: 10px 0 5px;
+      font-weight: bold;
+    }
+
+    #movie-modal-overlay form input[type="text"],
+    #movie-modal-overlay form input[type="number"],
+    #movie-modal-overlay form textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    #movie-modal-overlay form textarea {
+      resize: vertical;
+    }
+
+    /* Modal Buttons */
+    #movie-modal-overlay form button {
+      background: #28a745;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    #movie-modal-overlay form button:hover {
+      background: #218838;
+    }
+
+    #movie-modal-overlay .close-btn {
+      background: #6c757d;
+    }
+
+    #movie-modal-overlay .close-btn:hover {
+      background: #5a6268;
+    }
+
+    /* Modal Overlay */
+    #review-modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    /* Modal Box */
+    #review-modal-overlay .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      color: #333;
+    }
+
+    #review-modal-overlay form label {
+      display: block;
+      margin: 10px 0 5px;
+      font-weight: bold;
+    }
+
+    #review-modal-overlay form input[type="number"],
+    #review-modal-overlay form textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    #review-modal-overlay form textarea {
+      resize: vertical;
+    }
+
+    #review-modal-overlay form button {
+      background: #28a745;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    #review-modal-overlay form button:hover {
+      background: #218838;
+    }
+
+    #review-modal-overlay .close-btn {
+      background: #6c757d;
+    }
+
+    #review-modal-overlay .close-btn:hover {
+      background: #5a6268;
+    }
+
     @media (max-width:600px) {
       .filterbar {
         flex-direction: column;
@@ -423,7 +603,7 @@ $filmId = $_GET['film'] ?? null;  // Falls gesetzt: Detailansicht
   <!-- Navigation -->
   <div class="nav">
     <div class="nav-left">
-      <a href="index.php">Home</a>
+      <a class="btn" href="index.php">Home</a>
     </div>
     <div class="nav-right">
       <?php if (isLoggedIn()): ?>
@@ -431,10 +611,10 @@ $filmId = $_GET['film'] ?? null;  // Falls gesetzt: Detailansicht
         <?php if ($isAdmin): ?>
           <span class="admin-label">(Admin)</span>
         <?php endif; ?>
-        <a href="logout.php">Logout</a>
+        <a class="btn delete" href="logout.php">Logout</a>
       <?php else: ?>
-        <a href="login.php">Login</a>
-        <a href="register_form.php">Registrieren</a>
+        <a class="btn" href="login.php">Login</a>
+        <a class="btn" href="register_form.php">Registrieren</a>
       <?php endif; ?>
     </div>
   </div>
@@ -452,15 +632,30 @@ $filmId = $_GET['film'] ?? null;  // Falls gesetzt: Detailansicht
         <div class="film-detail">
           <h2><?= htmlspecialchars($film->titel) ?></h2>
           <div class="meta">
-            <strong>Bewertung:</strong> <?= number_format($film->bewertung, 1) ?><br>
-            <strong>Genre:</strong> <?= htmlspecialchars($film->genre) ?><br>
-            <strong>Regisseur:</strong> <?= htmlspecialchars($film->regisseur) ?>
+            <strong>Bewertung:</strong> <?= number_format($film->bewertung ?? 0, 1) ?><br>
+            <strong>Genre:</strong> <?= htmlspecialchars($film->genre ?? '-') ?><br>
+            <strong>Regisseur:</strong> <?= htmlspecialchars($film->regisseur ?? '-') ?><br>
+            <strong>Erscheinungsjahr:</strong> <?= htmlspecialchars($film->erscheinungsjahr ?? '-') ?><br>
+            <strong>Dauer:</strong> <?= htmlspecialchars($film->dauer ?? '-') ?> Minuten<br>
+            <strong>Sprache:</strong> <?= htmlspecialchars($film->sprache ?? '-') ?><br>
+            <strong>Beschreibung:</strong>
+            <p style="margin-top:5px;"><?= nl2br(htmlspecialchars($film->beschreibung ?? '-')) ?></p><br>
+            <?php if (!empty($film->schauspieler)): ?>
+              <strong>Schauspieler:</strong>
+              <ul style="margin-top:5px;">
+                <?php foreach ($film->schauspieler as $s): ?>
+                  <li><?= htmlspecialchars($s->name ?? '-') ?></li>
+                <?php endforeach; ?>
+              </ul>
+            <?php endif; ?>
           </div>
-
           <?php if ($isAdmin): ?>
             <div style="margin-bottom:15px;">
-              <a class="btn" href="edit_film.php?film=<?= urlencode($filmId) ?>">Bearbeiten</a>
-              <a class="delete" href="?delete_movie=<?= urlencode($filmId) ?>">Film löschen</a>
+              <a class="btn" href="edit_film.php?film=<?= urlencode((string) $film->_id) ?>">Bearbeiten</a>
+              <a class="btn delete" href="?delete_movie=<?= urlencode($mid) ?>"
+                onclick="return confirm('Möchtest du diesen Film wirklich löschen?')">
+                Löschen
+              </a>
             </div>
           <?php endif; ?>
 
@@ -470,12 +665,18 @@ $filmId = $_GET['film'] ?? null;  // Falls gesetzt: Detailansicht
               <p style="color:#666;">(Keine Bewertungen vorhanden)</p>
             <?php else: ?>
               <?php foreach ($reviews as $rev): ?>
+                <?php $user = isset($rev->benutzer_id) ? getUserById((string) $rev->benutzer_id) : null; ?>
                 <div class="review-item">
-                  <span class="rating">★ <?= $rev->rating ?>/5</span>
-                  <p><?= nl2br(htmlspecialchars($rev->text)) ?></p>
+                  <span class="rating">★ <?= isset($rev->bewertung) ? $rev->bewertung : '–' ?>/5</span>
+                  <?php if ($user): ?>
+                    <span style="margin-left: 10px; color: #555;">von <?= htmlspecialchars($user->username ?? '-') ?></span>
+                  <?php endif; ?>
+                  <p><?= nl2br(htmlspecialchars($rev->kommentar ?? '')) ?></p>
                   <?php if ($isAdmin): ?>
-                    <a href="?delete_review=<?= (string) $rev->_id ?>&film_id=<?= urlencode($filmId) ?>"
-                      style="color:red;">[Löschen]</a>
+                    <a href="?delete_review=<?= (string) $rev->_id ?>&film_id=<?= urlencode($filmId) ?>" style="color:red;"
+                      onclick="return confirm('Möchtest du diese Bewertung wirklich löschen?')">
+                      [Löschen]
+                    </a>
                   <?php endif; ?>
                 </div>
               <?php endforeach; ?>
@@ -509,12 +710,12 @@ $filmId = $_GET['film'] ?? null;  // Falls gesetzt: Detailansicht
         case 'title_desc':
           $sort = ['titel' => -1];
           break;
-          case 'newest':
-            $sort = ['_id' => -1];
-            break;
-          case 'oldest':
-            $sort = ['_id' => 1]; 
-            break;
+        case 'newest':
+          $sort = ['_id' => -1];
+          break;
+        case 'oldest':
+          $sort = ['_id' => 1];
+          break;
       }
 
       // Suche
@@ -566,26 +767,27 @@ $filmId = $_GET['film'] ?? null;  // Falls gesetzt: Detailansicht
         <?php foreach ($movies as $m): ?>
           <?php $mid = (string) $m->_id; ?>
           <div class="movie-card">
-            <h3>
-              <a href="?film=<?= urlencode($mid) ?>">
-                <?= htmlspecialchars($m->titel) ?>
-              </a>
-            </h3>
-            <div class="meta">
-              Bewertung: <?= number_format($m->bewertung, 1) ?><br>
-              Genre: <?= htmlspecialchars($m->genre ?? '') ?><br>
-              Regisseur: <?= htmlspecialchars($m->regisseur ?? '') ?>
-            </div>
+            <a class="movie-link" href="?film=<?= urlencode($mid) ?>">
+              <h3><?= htmlspecialchars($m->titel) ?></h3>
+              <div class="meta">
+                Bewertung: <?= number_format($m->bewertung ?? 0, 1) ?><br>
+                Genre: <?= htmlspecialchars($m->genre ?? '') ?><br>
+                Regisseur: <?= htmlspecialchars($m->regisseur ?? '') ?>
+              </div>
+            </a>
             <div class="actions">
               <?php if ($isAdmin): ?>
                 <a class="btn" href="edit_film.php?film=<?= urlencode($mid) ?>">Bearbeiten</a>
-                <a class="delete" href="?delete_movie=<?= urlencode($mid) ?>">Löschen</a>
+                <a class="btn delete" href="?delete_movie=<?= urlencode($mid) ?>"
+                  onclick="return confirm('Möchtest du diesen Film wirklich löschen?')">
+                  Löschen
+                </a>
               <?php endif; ?>
-              <a class="btn" href="?film=<?= urlencode($mid) ?>">Bewertungen</a>
             </div>
           </div>
         <?php endforeach; ?>
       </div>
+
 
       <!-- Pagination: ←  Seite X von Y  → (Seite X klickbar via JS) -->
       <?php if ($totalPages > 1): ?>
@@ -622,6 +824,72 @@ $filmId = $_GET['film'] ?? null;  // Falls gesetzt: Detailansicht
     <?php endif; ?>
   </div>
 
+  <!-- Modal: Neuen Film hinzufügen (Admin only) -->
+  <div id="movie-modal-overlay"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); justify-content:center; align-items:center; z-index:1000;">
+    <div
+      style="background:#fff; padding:20px; border-radius:8px; max-width:600px; width:100%; position:relative; box-shadow:0 2px 10px rgba(0,0,0,0.2);">
+      <h2>Neuen Film hinzufügen</h2>
+      <form method="post">
+        <input type="hidden" name="action" value="addMovie">
+
+        <label for="titel">Titel:</label>
+        <input type="text" id="titel" name="titel" required>
+
+        <label for="genre">Genre:</label>
+        <input type="text" id="genre" name="genre">
+
+        <label for="regisseur">Regisseur:</label>
+        <input type="text" id="regisseur" name="regisseur">
+
+        <label for="bewertung">Bewertung:</label>
+        <input type="number" step="0.1" min="0" max="10" id="bewertung" name="bewertung">
+
+        <label for="erscheinungsjahr">Erscheinungsjahr:</label>
+        <input type="number" id="erscheinungsjahr" name="erscheinungsjahr">
+
+        <label for="dauer">Dauer (Minuten):</label>
+        <input type="number" id="dauer" name="dauer">
+
+        <label for="sprache">Sprache:</label>
+        <input type="text" id="sprache" name="sprache">
+
+        <label for="beschreibung">Beschreibung:</label>
+        <textarea id="beschreibung" name="beschreibung" rows="3" style="resize:vertical;"></textarea>
+
+        <label for="schauspieler">Schauspieler (kommagetrennt):</label>
+        <input type="text" id="schauspieler" name="schauspieler">
+
+        <div style="margin-top:20px; display:flex; justify-content:space-between;">
+          <button type="submit">Speichern</button>
+          <button type="button" class="close-btn" onclick="closeModal('movie-modal-overlay')">Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Bewertung abgeben -->
+  <div id="review-modal-overlay"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); justify-content:center; align-items:center; z-index:1000;">
+    <div class="modal-content">
+      <h2>Bewertung abgeben</h2>
+      <form method="post">
+        <input type="hidden" name="action" value="addReview">
+        <input type="hidden" id="review_film_id" name="film_id" value="">
+
+        <label for="rating">Bewertung (1–5):</label>
+        <input type="number" id="rating" name="rating" min="1" max="5" required>
+
+        <label for="text">Kommentar:</label>
+        <textarea id="text" name="text" rows="4" required></textarea>
+
+        <div style="margin-top:20px; display:flex; justify-content:space-between;">
+          <button type="submit">Speichern</button>
+          <button type="button" class="close-btn" onclick="closeModal('review-modal-overlay')">Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
 </body>
 
